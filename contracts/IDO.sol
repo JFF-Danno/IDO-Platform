@@ -3,7 +3,7 @@ pragma solidity >=0.8.1;
 
 import "./PoolToken.sol";
 
-contract IDO  {
+contract IDO {
    
   constructor() {
     adminAddress = msg.sender;
@@ -31,6 +31,30 @@ contract IDO  {
         address mainToken,
         address projectToken,
         uint256 minAllocationPerUser
+    );
+
+    event PoolFunded(
+        uint256 indexed poolId,
+        uint256 amount,
+        address token
+    );
+
+    event NewInvestment(
+        uint256 indexed poolId,
+        uint256 amount,
+        address token
+    );
+
+    event FundsRetrieved(
+        uint256 indexed poolId,
+        uint256 amount,
+        address token
+    );
+
+    event TokensClaimed(
+        uint256 indexed poolId,
+        uint256 amount,
+        address token
     );
   
     modifier onlyAdmin() {
@@ -267,6 +291,7 @@ contract IDO  {
         require( PoolToken(poolData[poolId].mainToken).transferFrom(msg.sender, address(this), _numberOfTokens ) );
         amountList[poolId][msg.sender] = _numberOfTokens;
         poolData[poolId].totalInvested += _numberOfTokens;
+        emit NewInvestment(poolId,_numberOfTokens,poolData[poolId].projectToken);
     }
 
     function getAmountInvested(uint256 poolId) public view returns(uint256) {
@@ -304,6 +329,7 @@ contract IDO  {
        amountList[poolId][msg.sender] -= claimAmount;
        poolData[poolId].totalProjectTokens -= claimAmount;
        tokensSold[poolId] += claimAmount;
+       emit TokensClaimed(poolId,claimAmount,poolData[poolId].projectToken);
     }
 
     function getTokensSold(uint256 poolId) public view onlyExists(poolId) returns (uint256){
@@ -328,6 +354,7 @@ contract IDO  {
         require( PoolToken(poolData[poolId].projectToken).approve(msg.sender, address(this), _numberOfTokens ), 'Approval failed' );
         require( PoolToken(poolData[poolId].projectToken).transferFrom(msg.sender, address(this), _numberOfTokens ), 'Transfer failed' );
         poolData[poolId].totalProjectTokens += _numberOfTokens;
+        emit PoolFunded(poolId,_numberOfTokens,poolData[poolId].projectToken);
     }
 
     function canPayout(uint256 poolId, uint256 additionalTokens) public view onlyExists(poolId) returns (bool){
@@ -341,6 +368,7 @@ contract IDO  {
     function retrieveMainTokens(uint256 poolId) payable external  onlyPoolOwner(poolId) {
         require(keccak256(bytes(getStatus(poolId))) == keccak256(bytes('Finished')), '!Finished' );
         require( PoolToken(poolData[poolId].mainToken).transferFrom( address(this), msg.sender, poolData[poolId].totalInvested ), 'Transfer failed' );
+        emit FundsRetrieved(poolId,poolData[poolId].totalInvested,poolData[poolId].mainToken);
         poolData[poolId].totalInvested = 0;
     }
 
